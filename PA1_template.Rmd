@@ -97,11 +97,11 @@ DT::datatable(mean.steps.inInterval,
               options = list(pageLength = 5))
 
 # plot average steps vs. interval 
-plot(x = mean.steps.inInterval$interval, 
-     y = mean.steps.inInterval$interval.steps.mean,
-     main="Average Steps per Time Interval", 
-     xlab="Time Interval",
-     ylab="Average Steps")
+# plot(x = mean.steps.inInterval$interval, 
+#      y = mean.steps.inInterval$interval.steps.mean,
+#      main="Average Steps per Time Interval", 
+#      xlab="Time Interval",
+#      ylab="Average Steps")
 
 # plotly version
 x <- list(
