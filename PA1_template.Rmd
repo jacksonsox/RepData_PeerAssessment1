@@ -7,19 +7,183 @@ output:
 
 
 ## Loading and preprocessing the data
+Set up the environment the working directory and read the activity.csv file
+```{r envSetup}
+#load packages
+if(!require(dplyr)){
+    install.packages("dplyr")
+}
+library(dplyr)
 
+if(!require(DT)){
+    install.packages("DT")
+}
+library(DT)
+
+if(!require(plotly)){
+    install.packages("plotly")
+}
+library(plotly)
+
+if(!require(lubridate)){
+    install.packages("lubridate")
+}
+library(lubridate)
+
+if(!require(ggplot2)){
+    install.packages("ggplot2")
+}
+library(ggplot2)
+
+# set the working directory
+setwd("~/Documents/Development/Coursera/Class 5 - Reproducable Research/Course Project 1")
+```
+
+```{r fileRead}
+# read the file to a data table
+activity.data <- read.csv("./activity.csv")
+
+#structure
+str(activity.data)
+
+#summary
+summary(activity.data)
+
+#view of the initial data
+DT::datatable(activity.data, 
+              options = list(pageLength = 2))
+```
 
 
 ## What is mean total number of steps taken per day?
+Calculate the mean number of steps per day
 
+```{r stepMean}
+# mean steps per day - sum per day
+daily.data <- activity.data %>% 
+    group_by(date) %>%
+    summarise(daily.steps = sum(steps, na.rm = TRUE))
 
+# view summary data
+#view of the initial data
+DT::datatable(daily.data, 
+              options = list(pageLength = 5))
+
+# mean and median per day
+mean.steps <- mean(daily.data$daily.steps)
+median.steps <- median(daily.data$daily.steps)
+```
+
+The number of steps/day is mean: `r mean.steps` and median: `r median.steps` steps/day
+
+Histogram of steps/day
+```{r histogramStepsPerDay}
+hist(daily.data$daily.steps,
+     main="Steps per Day", 
+     xlab="Steps/Day", 
+     breaks=10)
+```
 
 ## What is the average daily activity pattern?
+Determine average steps per interval
+```{r dailyActivityPattern}
+# mean steps per interval determination
+mean.steps.inInterval <- activity.data %>%
+    group_by(interval) %>%
+    summarise(interval.steps.mean = mean(steps, na.rm = TRUE))
 
+# mean steps per interval table
+DT::datatable(mean.steps.inInterval, 
+              options = list(pageLength = 5))
 
+# plot average steps vs. interval 
+plot(x = mean.steps.inInterval$interval, 
+     y = mean.steps.inInterval$interval.steps.mean,
+     main="Average Steps per Time Interval", 
+     xlab="Time Interval",
+     ylab="Average Steps")
+
+# plotly version
+x <- list(
+  title = "Time Interval"
+)
+y <- list(
+  title = "Average Steps"
+)
+
+plot_ly(data = mean.steps.inInterval,
+        x = mean.steps.inInterval$interval, 
+        y = mean.steps.inInterval$interval.steps.mean,
+        type = 'scatter',
+        mode = 'markers') %>%
+    layout(title='Average Steps per Time Interval', xaxis = x, yaxis = y)
+
+# maximum average time interval
+max.mean.interval <- max(mean.steps.inInterval$interval.steps.mean)
+max.mean.step.interval <- mean.steps.inInterval %>%
+    filter(interval.steps.mean == max.mean.interval)
+```
+
+The maximum mean step per interval is `r  max.mean.interval` correlating to interval `r max.mean.step.interval$interval`
 
 ## Imputing missing values
+Determine counts and set missing, NA, data.  Set the missing data to the
+mean of the interval
+```{r missingData}
+# count of NA records
+na.count <- nrow(activity.data %>%
+                     filter(is.na(steps)))
 
+# reset NA values to the average value for the interval
+# mean.steps.inInterval$interval.steps.mean
+activity.data.imputed <- activity.data %>%
+    mutate(imputed.steps = 
+               ifelse(is.na(steps), 
+                      mean.steps.inInterval[match(interval, mean.steps.inInterval$interval), 
+                                            ]$interval.steps.mean,
+                      steps))
+```
 
+The records with NA steps is `r na.count` records
+
+```{r imputedData}
+# data table with imputed steps using the interval mean
+# mean steps per interval table
+DT::datatable(activity.data.imputed, 
+              options = list(pageLength = 5))
+```
+
+Histogram of steps/day with imputed data
+```{r histogramStepsPerDayWithImputedData}
+daily.data.imputed <- activity.data.imputed %>%
+    group_by(date) %>%
+    summarise(daily.steps.imputed = sum(imputed.steps, na.rm = TRUE))
+
+hist(daily.data.imputed$daily.steps.imputed,
+     main="Steps per Day with Imputed Data", 
+     xlab="Steps/Day", 
+     breaks=10)
+
+# mean and median per day
+mean.steps.imputed <- mean(daily.data.imputed$daily.steps.imputed)
+median.steps.imputed <- median(daily.data.imputed$daily.steps.imputed)
+```
+
+The number of steps/day is mean: `r mean.steps` and median: `r median.steps` steps/day
+
+With the imputed data added, the mean and median values increased as there are fewer days that have are NA values only
 
 ## Are there differences in activity patterns between weekdays and weekends?
+Add a factor for weekdays and weekends
+
+```{r weekendWeekday}
+# set date to factor weekend or weekday
+activity.data.imputed <- activity.data.imputed %>%
+    mutate(day.type = as.factor(ifelse(lubridate::wday(date) %in% c(1, 7), "Weekend", "Weekday")))
+
+factorPlot <- ggplot(activity.data.imputed, aes(x=interval, y=imputed.steps)) + geom_point(shape=1)
+factorPlot + facet_grid(day.type ~ .) +
+    labs(title = "Steps per Interval by Weekday and Weekend",
+         x = "Interval",
+         y = "Steps")
+```
